@@ -43,8 +43,20 @@ func (driver *Driver) Close() error {
 }
 
 func (driver *Driver) ensureVersionTableExists() error {
-	if _, err := driver.db.Exec("CREATE TABLE IF NOT EXISTS " + tableName + " (version int not null primary key);"); err != nil {
+	var versionTableExists bool
+	err := driver.db.QueryRow("SELECT EXISTS( SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name= '" + tableName + "' )").Scan(versionTableExists)
+
+	switch {
+	case err == sql.ErrNoRows:
+		return nil
+	case err != nil:
 		return err
+	}
+
+	if !versionTableExists {
+		if _, err := driver.db.Exec("CREATE TABLE " + tableName + " (version int not null primary key);"); err != nil {
+			return err
+		}
 	}
 	return nil
 }
